@@ -1,0 +1,73 @@
+# Dependencies
+node_modules/
+**/node_modules/
+.pnp
+.pnp.js
+
+# Production & Build Outputs
+dist/
+**/dist/
+build/
+**/build/
+out/
+**/out/
+.next/
+**/.next/
+
+# Next.js Cache & SWC
+.swc/
+**/.swc/
+
+# TypeScript & Cache
+*.tsbuildinfo
+.eslintcache
+.cache/
+**/.cache/
+
+# Testing & Code Coverage
+coverage/
+**/coverage/
+.nyc_output/
+
+# Environment Variables & Secrets
+.env
+.env*.local
+.env.local
+.env.development
+.env.test
+.env.production
+backend/.env
+frontend/.env.local
+!*.env.example
+!.env.example
+
+# Logs & Debugging
+logs/
+**/logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+
+# IDE & Editor files
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary files
+*.tmp
+*.temp
+.temp/
