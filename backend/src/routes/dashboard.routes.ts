@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { DashboardController } from '../controllers/dashboard.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { requireAuthentication, requireRole } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.use(authenticate);
+router.use(requireAuthentication);
 
 router.get('/summary', DashboardController.getSummary);
 router.get('/charts', DashboardController.getCharts);
-router.get('/manager-insights', DashboardController.getManagerInsights);
+router.get('/manager-insights', requireRole(['Super Admin', 'Admin', 'Education Manager']), DashboardController.getManagerInsights);
 
 export default router;

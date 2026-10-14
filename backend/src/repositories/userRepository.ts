@@ -1,4 +1,5 @@
 import { UserProfile, UserRole, UserStatus } from '../types';
+import { normalizeRole, ROLE_PERMISSIONS } from '../config/permissions';
 
 export class UserRepository {
   private static users: UserProfile[] = [
@@ -19,13 +20,29 @@ export class UserRepository {
       last_login_at: new Date(Date.now() - 3600000).toISOString(),
     },
     {
+      id: 'u0000007-0000-0000-0000-000000000007',
+      email: 'admin@tasktracker.io',
+      full_name: 'Tarek Nabil',
+      avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      phone: '+20 100 888 9999',
+      role_id: '22222222-1111-2222-1111-222222222222',
+      role_name: 'Admin',
+      department: 'Operations & Administration',
+      job_title: 'Operations Administrator',
+      status: 'active',
+      timezone: 'Africa/Cairo',
+      created_at: new Date(Date.now() - 80 * 86400000).toISOString(),
+      updated_at: new Date().toISOString(),
+      last_login_at: new Date(Date.now() - 5400000).toISOString(),
+    },
+    {
       id: 'u0000002-0000-0000-0000-000000000002',
       email: 'walied@tasktracker.io',
       full_name: 'Walied Said',
       avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
       phone: '+20 100 234 5678',
       role_id: '22222222-2222-2222-2222-222222222222',
-      role_name: 'Manager',
+      role_name: 'Education Manager',
       department: 'Education & Tech',
       job_title: 'Education & Security Manager',
       status: 'active',
@@ -100,16 +117,30 @@ export class UserRepository {
     },
   ];
 
+  /**
+   * Helper to format and enrich profile with normalized role and RBAC permissions
+   */
+  private static enrichUser(user: UserProfile): UserProfile {
+    const role_name = normalizeRole(user.role_name);
+    const permissions = [...(ROLE_PERMISSIONS[role_name] || [])];
+    return {
+      ...user,
+      role_name,
+      permissions,
+    };
+  }
+
   static async getAll(filters?: {
     role?: string;
     department?: string;
     status?: string;
     search?: string;
   }): Promise<UserProfile[]> {
-    let result = [...this.users];
+    let result = this.users.map((u) => this.enrichUser(u));
 
     if (filters?.role) {
-      result = result.filter((u) => u.role_name?.toLowerCase() === filters.role?.toLowerCase());
+      const targetRole = normalizeRole(filters.role);
+      result = result.filter((u) => u.role_name?.toLowerCase() === targetRole.toLowerCase());
     }
 
     if (filters?.department) {
@@ -134,22 +165,40 @@ export class UserRepository {
   }
 
   static async getById(id: string): Promise<UserProfile | null> {
-    return this.users.find((u) => u.id === id) || null;
+    const user = this.users.find((u) => u.id === id);
+    return user ? this.enrichUser(user) : null;
   }
 
   static async getByEmail(email: string): Promise<UserProfile | null> {
-    return this.users.find((u) => u.email.toLowerCase() === email.toLowerCase()) || null;
+    const user = this.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    return user ? this.enrichUser(user) : null;
+  }
+
+  static getRoleId(roleName: UserRole): string {
+    switch (roleName) {
+      case 'Super Admin':
+        return '11111111-1111-1111-1111-111111111111';
+      case 'Admin':
+        return '22222222-1111-2222-1111-222222222222';
+      case 'Education Manager':
+      case 'Manager':
+        return '22222222-2222-2222-2222-222222222222';
+      case 'Team Member':
+      default:
+        return '33333333-3333-3333-3333-333333333333';
+    }
   }
 
   static async create(data: Partial<UserProfile> & { email: string; full_name: string; role_name: UserRole }): Promise<UserProfile> {
+    const normalizedRole = normalizeRole(data.role_name);
     const newUser: UserProfile = {
       id: `u-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      email: data.email,
-      full_name: data.full_name,
+      email: data.email.trim().toLowerCase(),
+      full_name: data.full_name.trim(),
       avatar_url: data.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(data.full_name)}`,
       phone: data.phone || '',
-      role_id: data.role_id || (data.role_name === 'Super Admin' ? '11111111-1111-1111-1111-111111111111' : data.role_name === 'Manager' ? '22222222-2222-2222-2222-222222222222' : '33333333-3333-3333-3333-333333333333'),
-      role_name: data.role_name,
+      role_id: data.role_id || this.getRoleId(normalizedRole),
+      role_name: normalizedRole,
       department: data.department || 'General',
       job_title: data.job_title || 'Team Member',
       status: data.status || 'active',
@@ -158,18 +207,25 @@ export class UserRepository {
       updated_at: new Date().toISOString(),
     };
     this.users.push(newUser);
-    return newUser;
+    return this.enrichUser(newUser);
   }
 
   static async update(id: string, updates: Partial<UserProfile>): Promise<UserProfile | null> {
     const index = this.users.findIndex((u) => u.id === id);
     if (index === -1) return null;
+
+    const current = this.users[index];
+    const newRole = updates.role_name ? normalizeRole(updates.role_name) : current.role_name;
+
     this.users[index] = {
-      ...this.users[index],
+      ...current,
       ...updates,
+      role_name: newRole,
+      role_id: updates.role_name ? this.getRoleId(newRole!) : current.role_id,
       updated_at: new Date().toISOString(),
     };
-    return this.users[index];
+
+    return this.enrichUser(this.users[index]);
   }
 
   static async updateStatus(id: string, status: UserStatus): Promise<UserProfile | null> {

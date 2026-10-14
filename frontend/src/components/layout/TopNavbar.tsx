@@ -88,7 +88,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
           {/* Role quick switch pill for testing */}
           <div className="hidden lg:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
             <span className="text-[11px] font-semibold text-slate-400 px-2 uppercase">Role:</span>
-            {(['Super Admin', 'Manager', 'Team Member'] as UserRole[]).map((r) => (
+            {(['Super Admin', 'Admin', 'Education Manager', 'Team Member'] as UserRole[]).map((r) => (
               <button
                 key={r}
                 onClick={() => switchDemoUser(r)}
@@ -98,7 +98,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
                     : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                 }`}
               >
-                {r === 'Super Admin' ? 'Admin' : r}
+                {r}
               </button>
             ))}
           </div>

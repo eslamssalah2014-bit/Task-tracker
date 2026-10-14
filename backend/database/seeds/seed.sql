@@ -7,7 +7,8 @@
 -- Roles
 INSERT INTO roles (id, name, description) VALUES
 ('11111111-1111-1111-1111-111111111111', 'Super Admin', 'Full access to all system resources, settings, and user management'),
-('22222222-2222-2222-2222-222222222222', 'Manager', 'Can create, assign, supervise tasks and monitor team performance'),
+('22222222-1111-2222-1111-222222222222', 'Admin', 'Administrative operations, user management, and operational oversight'),
+('22222222-2222-2222-2222-222222222222', 'Education Manager', 'Can supervise education teams, assign tasks, and monitor team performance'),
 ('33333333-3333-3333-3333-333333333333', 'Team Member', 'Executes assigned tasks, provides updates, comments, and flags blockers')
 ON CONFLICT (name) DO NOTHING;
 

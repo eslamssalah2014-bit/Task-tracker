@@ -60,6 +60,15 @@ app.post('/api/v1/jobs/daily-check', async (req: Request, res: Response) => {
   res.status(200).json({ success: true, data: result });
 });
 
+// Explicitly block any unauthenticated public registration attempts
+app.all(['/register', '/signup', '/api/register', '/api/signup', '/api/v1/register', '/api/v1/signup'], (req: Request, res: Response) => {
+  res.status(403).json({
+    success: false,
+    message: 'Public registration is disabled. This is an internal tool and accounts can only be provisioned by authorized administrators.',
+    code: 'REGISTRATION_DISABLED',
+  });
+});
+
 // Mount versioned REST API (Section 61)
 app.use('/api/v1', apiRouter);
 

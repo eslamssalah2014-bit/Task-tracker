@@ -1,18 +1,18 @@
 import { Router } from 'express';
 import { TeamController } from '../controllers/team.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { requireAuthentication, requirePermission } from '../middleware/auth.middleware';
 import { validateRequest } from '../middleware/validate.middleware';
 import { createTeamSchema, updateTeamSchema } from '../validators/user.validator';
 
 const router = Router();
 
-router.use(authenticate);
+router.use(requireAuthentication);
 
-router.get('/', TeamController.getAll);
-router.get('/:id', TeamController.getById);
-router.get('/:id/performance', TeamController.getPerformance);
-router.post('/', validateRequest(createTeamSchema), TeamController.create);
-router.patch('/:id', validateRequest(updateTeamSchema), TeamController.update);
-router.delete('/:id', TeamController.delete);
+router.get('/', requirePermission('teams.view'), TeamController.getAll);
+router.get('/:id', requirePermission('teams.view'), TeamController.getById);
+router.get('/:id/performance', requirePermission('teams.view'), TeamController.getPerformance);
+router.post('/', requirePermission('teams.manage'), validateRequest(createTeamSchema), TeamController.create);
+router.patch('/:id', requirePermission('teams.manage'), validateRequest(updateTeamSchema), TeamController.update);
+router.delete('/:id', requirePermission('teams.manage'), TeamController.delete);
 
 export default router;

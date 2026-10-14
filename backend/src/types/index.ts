@@ -2,7 +2,7 @@
 // Task Tracker - Core Domain Types
 // ========================================================
 
-export type UserRole = 'Super Admin' | 'Manager' | 'Team Member';
+export type UserRole = 'Super Admin' | 'Admin' | 'Education Manager' | 'Team Member' | 'Manager';
 
 export type UserStatus = 'active' | 'disabled' | 'pending';
 
@@ -56,6 +56,7 @@ export interface UserProfile {
   last_login_at?: string;
   created_at: string;
   updated_at: string;
+  permissions?: string[];
   active_tasks_count?: number;
   completed_tasks_count?: number;
 }

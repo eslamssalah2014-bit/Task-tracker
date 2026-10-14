@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { ReportController } from '../controllers/report.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { requireAuthentication, requirePermission } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.use(authenticate);
+router.use(requireAuthentication);
 
-router.get('/summary', ReportController.getReportsSummary);
-router.get('/export-csv', ReportController.exportTasksCsv);
+router.get('/summary', requirePermission('reports.view'), ReportController.getReportsSummary);
+router.get('/export-csv', requirePermission('reports.view'), ReportController.exportTasksCsv);
 
 export default router;

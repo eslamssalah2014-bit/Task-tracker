@@ -7,16 +7,21 @@ class ApiClient {
     };
 
     if (typeof window !== 'undefined') {
-      const storedUser = localStorage.getItem('tt_current_user');
-      if (storedUser) {
-        try {
-          const user = JSON.parse(storedUser);
-          if (user.id) {
-            headers['Authorization'] = `Bearer ${user.id}`;
-            headers['X-User-Id'] = user.id;
+      const storedToken = localStorage.getItem('tt_auth_token');
+      if (storedToken) {
+        headers['Authorization'] = `Bearer ${storedToken}`;
+      } else {
+        const storedUser = localStorage.getItem('tt_current_user');
+        if (storedUser) {
+          try {
+            const user = JSON.parse(storedUser);
+            if (user.id) {
+              headers['Authorization'] = `Bearer ${user.id}`;
+              headers['X-User-Id'] = user.id;
+            }
+          } catch (e) {
+            // ignore
           }
-        } catch (e) {
-          // ignore
         }
       }
     }
@@ -34,6 +39,14 @@ class ApiClient {
         },
       });
 
+      if (res.status === 401) {
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+          localStorage.removeItem('tt_auth_token');
+          localStorage.removeItem('tt_current_user');
+          window.location.href = '/login?expired=1';
+        }
+      }
+
       const json = await res.json();
       if (!res.ok || json.success === false) {
         throw new Error(json.message || `Request failed with status ${res.status}`);
@@ -48,10 +61,27 @@ class ApiClient {
 
   // Auth
   async login(email: string, password: string) {
-    return this.request<{ user: any; token: string }>('/api/v1/auth/login', {
+    const res = await this.request<{ user: any; token: string }>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+    if (res?.token && typeof window !== 'undefined') {
+      localStorage.setItem('tt_auth_token', res.token);
+    }
+    return res;
+  }
+
+  async logout() {
+    try {
+      await this.request('/api/v1/auth/logout', { method: 'POST' });
+    } catch (e) {
+      // Ignore
+    } finally {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('tt_auth_token');
+        localStorage.removeItem('tt_current_user');
+      }
+    }
   }
 
   async getMe() {

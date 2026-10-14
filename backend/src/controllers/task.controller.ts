@@ -5,6 +5,7 @@ import { sendError, sendSuccess } from '../utils/response';
 import { NotificationService } from '../services/notificationService';
 import { WebhookService } from '../services/webhookService';
 import { AIService } from '../services/aiService';
+import { roleHasPermission, normalizeRole } from '../config/permissions';
 
 export class TaskController {
   static async getAll(req: AuthenticatedRequest, res: Response): Promise<any> {
@@ -24,7 +25,7 @@ export class TaskController {
       search,
     } = req.query;
 
-    const tasks = await TaskRepository.getAll({
+    let tasks = await TaskRepository.getAll({
       team_id: team_id as string,
       user_id: user_id as string,
       created_by: created_by as string,
@@ -40,6 +41,17 @@ export class TaskController {
       search: search as string,
     });
 
+    // Resource-level RBAC: Team Members without 'tasks.view_all' can only see assigned/created tasks
+    const userRole = normalizeRole(req.user?.role_name);
+    if (!roleHasPermission(userRole, 'tasks.view_all')) {
+      const currentUserId = req.user?.id;
+      tasks = tasks.filter((t) => {
+        const isAssignee = (t.assignees || []).some((a) => a.id === currentUserId);
+        const isCreator = t.created_by === currentUserId;
+        return isAssignee || isCreator;
+      });
+    }
+
     return sendSuccess(res, tasks);
   }
 
@@ -49,6 +61,24 @@ export class TaskController {
     if (!task) {
       return sendError(res, 'Task not found', 404, 'TASK_NOT_FOUND');
     }
+
+    // Resource-level access check
+    const userRole = normalizeRole(req.user?.role_name);
+    if (!roleHasPermission(userRole, 'tasks.view_all')) {
+      const currentUserId = req.user?.id;
+      const isAssignee = (task.assignees || []).some((a) => a.id === currentUserId);
+      const isCreator = task.created_by === currentUserId;
+
+      if (!isAssignee && !isCreator) {
+        return sendError(
+          res,
+          'Access denied. You can only view tasks assigned to you or created by you.',
+          403,
+          'FORBIDDEN'
+        );
+      }
+    }
+
     return sendSuccess(res, task);
   }
 
@@ -85,10 +115,23 @@ export class TaskController {
   static async update(req: AuthenticatedRequest, res: Response): Promise<any> {
     const { id } = req.params;
     const userId = req.user?.id;
+    const userRole = normalizeRole(req.user?.role_name);
 
-    // Check permissions: Team members cannot modify sensitive fields (assigned users, delete, etc.)
-    if (req.user?.role_name === 'Team Member' && (req.body.created_by || req.body.team_id)) {
-      return sendError(res, 'Team members cannot alter task ownership or team assignment', 403, 'FORBIDDEN');
+    // If Team Member, check they are assigned to task and only updating allowed fields
+    if (userRole === 'Team Member') {
+      const task = await TaskRepository.getById(id);
+      if (!task) {
+        return sendError(res, 'Task not found', 404, 'TASK_NOT_FOUND');
+      }
+      const isAssignee = (task.assignees || []).some((a) => a.id === userId);
+      if (!isAssignee && task.created_by !== userId) {
+        return sendError(res, 'You can only update tasks assigned to you', 403, 'FORBIDDEN');
+      }
+
+      // Disallow reassigning, changing team or creator
+      if (req.body.created_by || req.body.team_id || req.body.assignee_ids) {
+        return sendError(res, 'Team members cannot alter task assignees, creator, or team', 403, 'FORBIDDEN');
+      }
     }
 
     const updated = await TaskRepository.update(id, req.body, userId);
@@ -103,8 +146,10 @@ export class TaskController {
 
   static async delete(req: AuthenticatedRequest, res: Response): Promise<any> {
     const { id } = req.params;
-    if (req.user?.role_name === 'Team Member') {
-      return sendError(res, 'Team members are not allowed to delete tasks', 403, 'FORBIDDEN');
+
+    const userRole = normalizeRole(req.user?.role_name);
+    if (!roleHasPermission(userRole, 'tasks.delete')) {
+      return sendError(res, 'You do not have permission to delete tasks', 403, 'FORBIDDEN');
     }
 
     const success = await TaskRepository.delete(id, req.user?.id);
@@ -268,8 +313,9 @@ export class TaskController {
 
   static async approve(req: AuthenticatedRequest, res: Response): Promise<any> {
     const { id } = req.params;
-    if (req.user?.role_name === 'Team Member') {
-      return sendError(res, 'Only Managers or Admins can approve tasks', 403, 'FORBIDDEN');
+    const userRole = normalizeRole(req.user?.role_name);
+    if (!roleHasPermission(userRole, 'tasks.approve')) {
+      return sendError(res, 'You do not have permission to approve tasks', 403, 'FORBIDDEN');
     }
 
     const task = await TaskRepository.approveTask(id, req.user?.id || 'u0000002-0000-0000-0000-000000000002', req.body.notes);
@@ -293,8 +339,9 @@ export class TaskController {
 
   static async reject(req: AuthenticatedRequest, res: Response): Promise<any> {
     const { id } = req.params;
-    if (req.user?.role_name === 'Team Member') {
-      return sendError(res, 'Only Managers or Admins can reject tasks', 403, 'FORBIDDEN');
+    const userRole = normalizeRole(req.user?.role_name);
+    if (!roleHasPermission(userRole, 'tasks.approve')) {
+      return sendError(res, 'You do not have permission to reject tasks', 403, 'FORBIDDEN');
     }
 
     if (!req.body.notes || req.body.notes.trim().length === 0) {

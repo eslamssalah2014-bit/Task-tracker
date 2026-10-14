@@ -19,7 +19,7 @@ import {
 import { Modal } from '../../../components/ui/Modal';
 
 export default function UsersPage() {
-  const { role } = useAuth();
+  const { role, hasPermission } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
@@ -104,7 +104,7 @@ export default function UsersPage() {
           </p>
         </div>
 
-        {role === 'Super Admin' && (
+        {hasPermission('users.create') && (
           <button
             onClick={() => setIsAddOpen(true)}
             className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-colors shadow-sm self-start sm:self-auto"
@@ -134,7 +134,8 @@ export default function UsersPage() {
         >
           <option value="">All Roles</option>
           <option value="Super Admin">Super Admin</option>
-          <option value="Manager">Manager</option>
+          <option value="Admin">Admin</option>
+          <option value="Education Manager">Education Manager</option>
           <option value="Team Member">Team Member</option>
         </select>
 
@@ -162,7 +163,7 @@ export default function UsersPage() {
                 <th className="py-3.5 px-4">Active Tasks</th>
                 <th className="py-3.5 px-4">Completed</th>
                 <th className="py-3.5 px-4">Status</th>
-                {role === 'Super Admin' && <th className="py-3.5 px-4 text-right">Actions</th>}
+                {hasPermission('users.disable') && <th className="py-3.5 px-4 text-right">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -187,7 +188,9 @@ export default function UsersPage() {
                       className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                         u.role_name === 'Super Admin'
                           ? 'bg-purple-100 text-purple-800'
-                          : u.role_name === 'Manager'
+                          : u.role_name === 'Admin'
+                          ? 'bg-indigo-100 text-indigo-800'
+                          : u.role_name === 'Education Manager' || u.role_name === 'Manager'
                           ? 'bg-blue-100 text-blue-800'
                           : 'bg-slate-100 text-slate-700'
                       }`}
@@ -225,18 +228,26 @@ export default function UsersPage() {
                     </span>
                   </td>
 
-                  {role === 'Super Admin' && (
+                  {hasPermission('users.disable') && (
                     <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => handleToggleStatus(u)}
-                        className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors ${
-                          u.status === 'active'
-                            ? 'text-rose-600 hover:bg-rose-50'
-                            : 'text-emerald-600 hover:bg-emerald-50'
-                        }`}
-                      >
-                        {u.status === 'active' ? 'Disable' : 'Activate'}
-                      </button>
+                      {u.role_name === 'Super Admin' ? (
+                        <span className="text-[10px] text-slate-400 font-medium px-2 py-1 bg-slate-100 rounded-md">
+                          Protected
+                        </span>
+                      ) : role === 'Admin' && u.role_name === 'Admin' ? (
+                        <span className="text-[10px] text-slate-400 font-medium">Protected</span>
+                      ) : (
+                        <button
+                          onClick={() => handleToggleStatus(u)}
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors ${
+                            u.status === 'active'
+                              ? 'text-rose-600 hover:bg-rose-50'
+                              : 'text-emerald-600 hover:bg-emerald-50'
+                          }`}
+                        >
+                          {u.status === 'active' ? 'Disable' : 'Activate'}
+                        </button>
+                      )}
                     </td>
                   )}
                 </tr>
@@ -289,8 +300,9 @@ export default function UsersPage() {
                 className="w-full p-2.5 border border-slate-200 rounded-xl bg-slate-50"
               >
                 <option value="Team Member">Team Member</option>
-                <option value="Manager">Manager</option>
-                <option value="Super Admin">Super Admin</option>
+                <option value="Education Manager">Education Manager</option>
+                <option value="Admin">Admin</option>
+                {role === 'Super Admin' && <option value="Super Admin">Super Admin</option>}
               </select>
             </div>
 

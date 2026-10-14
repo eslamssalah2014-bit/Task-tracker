@@ -1,16 +1,16 @@
 import { Router } from 'express';
 import { SettingsController } from '../controllers/settings.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { requireAuthentication, requirePermission } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.use(authenticate);
+router.use(requireAuthentication);
 
 router.get('/metadata', SettingsController.getMetadata);
-router.patch('/', SettingsController.updateSettings);
-router.get('/audit-logs', SettingsController.getAuditLogs);
+router.patch('/', requirePermission('settings.manage'), SettingsController.updateSettings);
+router.get('/audit-logs', requirePermission('audit_logs.view'), SettingsController.getAuditLogs);
 router.get('/templates', SettingsController.getTemplates);
-router.post('/templates', SettingsController.createTemplate);
+router.post('/templates', requirePermission('settings.manage'), SettingsController.createTemplate);
 router.get('/saved-filters', SettingsController.getSavedFilters);
 router.post('/saved-filters', SettingsController.createSavedFilter);
 

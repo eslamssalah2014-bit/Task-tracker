@@ -95,6 +95,27 @@ export default function ProfilePage() {
             />
           </div>
         </div>
+
+        {/* Active RBAC Permissions */}
+        <div className="pt-4 border-t border-slate-100">
+          <div className="flex items-center gap-2 mb-2.5">
+            <Shield className="w-4 h-4 text-blue-600" />
+            <h3 className="text-xs font-bold text-slate-800">Granted Role Permissions</h3>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {((user?.permissions && user.permissions.length > 0)
+              ? user.permissions
+              : ['tasks.view_assigned', 'tasks.update_progress']
+            ).map((perm) => (
+              <span
+                key={perm}
+                className="px-2 py-0.5 rounded-lg text-[10px] font-mono bg-blue-50 text-blue-700 border border-blue-200/60"
+              >
+                {perm}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Notification Preferences (Section 93) */}

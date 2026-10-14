@@ -3,7 +3,10 @@ import { app } from '../app';
 import { TaskHealthService } from '../services/taskHealthService';
 import { TaskRepository } from '../repositories/taskRepository';
 
-describe('Task Tracker Backend API Tests', () => {
+describe('Task Tracker Backend API & Security Tests', () => {
+  let superAdminToken = '';
+  let teamMemberToken = '';
+
   it('GET /health returns status ok', async () => {
     const res = await request(app).get('/health');
     expect(res.status).toBe(200);
@@ -17,7 +20,30 @@ describe('Task Tracker Backend API Tests', () => {
     expect(res.body.database).toBe('connected');
   });
 
-  it('POST /api/v1/auth/login authenticates demo admin user', async () => {
+  it('Rejects unauthenticated access to protected endpoints with 401', async () => {
+    const res = await request(app).get('/api/v1/tasks');
+    expect(res.status).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.code).toBe('UNAUTHORIZED');
+  });
+
+  it('Strictly blocks public registration on /api/v1/auth/register with 403', async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/register')
+      .send({ email: 'intruder@external.com', password: 'Password123!' });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('REGISTRATION_DISABLED');
+  });
+
+  it('Strictly blocks public registration on root /register with 403', async () => {
+    const res = await request(app)
+      .post('/register')
+      .send({ email: 'intruder@external.com', password: 'Password123!' });
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('REGISTRATION_DISABLED');
+  });
+
+  it('POST /api/v1/auth/login authenticates Super Admin and returns permissions', async () => {
     const res = await request(app)
       .post('/api/v1/auth/login')
       .send({ email: 'eslam@tasktracker.io', password: 'Admin@123' });
@@ -26,10 +52,32 @@ describe('Task Tracker Backend API Tests', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.data.user.email).toBe('eslam@tasktracker.io');
     expect(res.body.data.user.role_name).toBe('Super Admin');
+    expect(Array.isArray(res.body.data.user.permissions)).toBe(true);
+    expect(res.body.data.user.permissions).toContain('users.create');
+    expect(res.body.data.user.permissions).toContain('settings.manage');
+
+    superAdminToken = res.body.data.token;
   });
 
-  it('GET /api/v1/tasks returns populated task list', async () => {
-    const res = await request(app).get('/api/v1/tasks');
+  it('POST /api/v1/auth/login authenticates Team Member', async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/login')
+      .send({ email: 'sarah@tasktracker.io', password: 'Admin@123' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.user.role_name).toBe('Team Member');
+    expect(res.body.data.user.permissions).not.toContain('users.create');
+    expect(res.body.data.user.permissions).not.toContain('settings.manage');
+
+    teamMemberToken = res.body.data.token;
+  });
+
+  it('GET /api/v1/tasks returns populated task list with Super Admin token', async () => {
+    const res = await request(app)
+      .get('/api/v1/tasks')
+      .set('Authorization', `Bearer ${superAdminToken}`);
+
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(Array.isArray(res.body.data)).toBe(true);
@@ -38,9 +86,10 @@ describe('Task Tracker Backend API Tests', () => {
     expect(res.body.data[0]).toHaveProperty('health');
   });
 
-  it('POST /api/v1/tasks creates a new task and validates required fields', async () => {
+  it('POST /api/v1/tasks creates a new task when authenticated as Super Admin', async () => {
     const res = await request(app)
       .post('/api/v1/tasks')
+      .set('Authorization', `Bearer ${superAdminToken}`)
       .send({
         title: 'Conduct Automated Penetration Scan',
         priority_id: 'p4',
@@ -56,6 +105,7 @@ describe('Task Tracker Backend API Tests', () => {
   it('POST /api/v1/tasks rejects task with invalid short title', async () => {
     const res = await request(app)
       .post('/api/v1/tasks')
+      .set('Authorization', `Bearer ${superAdminToken}`)
       .send({
         title: 'No',
         priority_id: 'p1',
@@ -64,6 +114,29 @@ describe('Task Tracker Backend API Tests', () => {
     expect(res.status).toBe(422);
     expect(res.body.success).toBe(false);
     expect(res.body.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('DELETE /api/v1/tasks/:id is forbidden for Team Member lacking tasks.delete', async () => {
+    const res = await request(app)
+      .delete('/api/v1/tasks/t-101')
+      .set('Authorization', `Bearer ${teamMemberToken}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('FORBIDDEN');
+  });
+
+  it('POST /api/v1/users is forbidden for Team Member lacking users.create', async () => {
+    const res = await request(app)
+      .post('/api/v1/users')
+      .set('Authorization', `Bearer ${teamMemberToken}`)
+      .send({
+        full_name: 'Unauthorized User',
+        email: 'unauth@tasktracker.io',
+        role_name: 'Team Member',
+      });
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe('FORBIDDEN');
   });
 
   it('Prevents circular dependencies', async () => {

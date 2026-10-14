@@ -33,50 +33,50 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
       label: 'Dashboard',
       href: '/',
       icon: LayoutDashboard,
-      roles: ['Super Admin', 'Manager', 'Team Member'],
+      roles: ['Super Admin', 'Admin', 'Education Manager', 'Team Member'],
     },
     {
       label: 'My Tasks',
       href: '/my-tasks',
       icon: CheckCircle2,
-      roles: ['Super Admin', 'Manager', 'Team Member'],
+      roles: ['Super Admin', 'Admin', 'Education Manager', 'Team Member'],
     },
     {
       label: 'All Tasks',
       href: '/tasks',
       icon: Layers,
-      roles: ['Super Admin', 'Manager', 'Team Member'],
+      roles: ['Super Admin', 'Admin', 'Education Manager', 'Team Member'],
     },
     {
       label: 'Manager Command',
       href: '/manager',
       icon: ShieldAlert,
       badge: 'Insights',
-      roles: ['Super Admin', 'Manager'],
+      roles: ['Super Admin', 'Admin', 'Education Manager'],
     },
     {
       label: 'Teams',
       href: '/teams',
       icon: Briefcase,
-      roles: ['Super Admin', 'Manager'],
+      roles: ['Super Admin', 'Admin', 'Education Manager'],
     },
     {
       label: 'Users',
       href: '/users',
       icon: Users,
-      roles: ['Super Admin', 'Manager'],
+      roles: ['Super Admin', 'Admin'],
     },
     {
       label: 'Reports & Analytics',
       href: '/reports',
       icon: BarChart3,
-      roles: ['Super Admin', 'Manager'],
+      roles: ['Super Admin', 'Admin', 'Education Manager'],
     },
     {
       label: 'Templates',
       href: '/templates',
       icon: FileCode,
-      roles: ['Super Admin', 'Manager'],
+      roles: ['Super Admin', 'Admin', 'Education Manager'],
     },
     {
       label: 'Settings',
@@ -86,7 +86,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
     },
   ];
 
-  const allowedNavItems = navItems.filter((item) => item.roles.includes(role));
+  const allowedNavItems = navItems.filter((item) =>
+    item.roles.map((r) => r.toLowerCase()).includes((role || '').toLowerCase())
+  );
 
   return (
     <aside
