@@ -85,9 +85,13 @@ export default function UsersPage() {
       setEmail('');
       setPhone('');
       setJobTitle('');
-      loadUsers();
+      await loadUsers();
     } catch (err: any) {
-      setError(err.message || 'Failed to create user');
+      setError(
+        err?.message === 'Failed to fetch'
+          ? 'Backend server connection error. Please verify the backend server is running.'
+          : err.message || 'Failed to create user'
+      );
     } finally {
       setIsSubmitting(false);
     }
