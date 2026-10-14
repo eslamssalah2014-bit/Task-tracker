@@ -39,40 +39,37 @@ export class ApiConfigurationError extends Error {
 export function getApiBaseUrl(): string {
   const configured = (process.env.NEXT_PUBLIC_API_URL || '').trim();
   const isBrowser = typeof window !== 'undefined';
+  const isLocalHost = isBrowser && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
   const isDev = process.env.NODE_ENV === 'development';
 
   if (configured) {
-    // Strip trailing slash
     const sanitized = configured.replace(/\/+$/, '');
 
-    // In production, prevent accidental requests to localhost
-    if (!isDev) {
-      if (sanitized.includes('localhost') || sanitized.includes('127.0.0.1')) {
-        console.error(
-          '[API Client] CRITICAL: NEXT_PUBLIC_API_URL is pointing to localhost in a production build: ' + sanitized
-        );
-        throw new ApiConfigurationError(
-          'Production API URL cannot point to localhost. Please configure NEXT_PUBLIC_API_URL to point to your live backend.'
-        );
-      }
+    // Allow localhost when accessed locally on developer machine (dev or local production preview)
+    if (isLocalHost || isDev) {
+      return sanitized;
     }
+
+    // On a remote deployed domain (e.g. Vercel), if NEXT_PUBLIC_API_URL points to localhost:
+    if (!isLocalHost && (sanitized.includes('localhost') || sanitized.includes('127.0.0.1'))) {
+      console.warn(
+        '[API Client] NEXT_PUBLIC_API_URL points to localhost on a remote deployment (' +
+          (isBrowser ? window.location.hostname : 'server') +
+          '). Defaulting to relative proxy paths.'
+      );
+      return '';
+    }
+
     return sanitized;
   }
 
-  // If in browser in production and NEXT_PUBLIC_API_URL is not set:
-  if (isBrowser && !isDev) {
-    // If running on a domain other than localhost, use relative URLs (leveraging Next.js rewrites)
-    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      return '';
-    }
+  // If in browser on a deployed domain and NEXT_PUBLIC_API_URL is not set:
+  if (isBrowser && !isLocalHost) {
+    return ''; // Relative path, handled by Next.js rewrites
   }
 
-  // Development fallback only
-  if (isDev) {
-    return 'http://localhost:5000';
-  }
-
-  return '';
+  // Development / local fallback
+  return 'http://localhost:5000';
 }
 
 class ApiClient {
