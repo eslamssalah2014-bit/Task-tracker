@@ -35,10 +35,13 @@ export default function UsersPage() {
   const [department, setDepartment] = useState('Education & Tech');
   const [jobTitle, setJobTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadUsers = async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const data = await api.getUsers({
         search: search || undefined,
@@ -46,8 +49,13 @@ export default function UsersPage() {
         status: statusFilter || undefined,
       });
       setUsers(data);
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      console.error('[Users] Load error:', e);
+      setLoadError(
+        e?.isNetworkError
+          ? 'Unable to connect to the backend server. Please check your network connection or server status.'
+          : e?.message || 'Failed to load user directory.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -59,11 +67,17 @@ export default function UsersPage() {
 
   const handleToggleStatus = async (user: UserProfile) => {
     const newStatus: UserStatus = user.status === 'active' ? 'disabled' : 'active';
+    setActionError(null);
     try {
       await api.updateUserStatus(user.id, newStatus);
-      loadUsers();
-    } catch (e) {
-      console.error(e);
+      await loadUsers();
+    } catch (e: any) {
+      console.error('[Users] Status toggle error:', e);
+      setActionError(
+        e?.isNetworkError
+          ? 'Network error: could not update user status. Backend may be offline.'
+          : e?.message || 'Failed to update user status.'
+      );
     }
   };
 
@@ -87,10 +101,11 @@ export default function UsersPage() {
       setJobTitle('');
       await loadUsers();
     } catch (err: any) {
+      console.error('[Users] Create user error:', err);
       setError(
-        err?.message === 'Failed to fetch'
-          ? 'Backend server connection error. Please verify the backend server is running.'
-          : err.message || 'Failed to create user'
+        err?.isNetworkError
+          ? 'Unable to connect to the backend server. Please verify the backend service is running and try again.'
+          : err?.message || 'Failed to create user account.'
       );
     } finally {
       setIsSubmitting(false);
@@ -117,6 +132,37 @@ export default function UsersPage() {
           </button>
         )}
       </div>
+
+      {/* Global Action / Network Error Alerts */}
+      {loadError && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between text-xs text-amber-800">
+          <div>
+            <span className="font-semibold">Connectivity Notice: </span>
+            {loadError}
+          </div>
+          <button
+            onClick={() => loadUsers()}
+            className="ml-4 px-3 py-1 font-semibold bg-amber-600 text-white hover:bg-amber-700 rounded-lg text-xs transition-colors shrink-0"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {actionError && (
+        <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-center justify-between text-xs text-rose-800">
+          <div>
+            <span className="font-semibold">Action Failed: </span>
+            {actionError}
+          </div>
+          <button
+            onClick={() => setActionError(null)}
+            className="ml-4 text-rose-500 hover:text-rose-700 font-bold text-xs"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Filter Toolbar */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">

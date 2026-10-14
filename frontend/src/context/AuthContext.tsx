@@ -246,28 +246,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return { success: false, error: 'Invalid email address or password.' };
     } catch (err: any) {
-      // Check demo credentials fallback if backend is unreachable or demo testing
-      const matchedDemo = Object.values(DEMO_CREDENTIALS).find(
-        (c) => c.email.toLowerCase() === cleanEmail && c.password === pass
-      );
-
-      if (matchedDemo) {
-        const demoProfile = matchedDemo.profile;
-        setUser(demoProfile);
-        localStorage.setItem('tt_auth_token', demoProfile.id);
-        localStorage.setItem('tt_current_user', JSON.stringify(demoProfile));
-
-        if (rememberMe) {
-          localStorage.setItem('tt_remember_email', cleanEmail);
-        }
-
-        return { success: true, user: demoProfile };
+      if (err?.name === 'NetworkError' || err?.isNetworkError) {
+        return {
+          success: false,
+          error: 'Unable to connect to the authentication server. Please check your internet connection or backend server status.',
+        };
       }
 
       const errorMessage =
-        err?.message?.includes('disabled') || err?.message?.includes('ACCOUNT_DISABLED')
+        err?.message?.includes('disabled') || err?.code === 'ACCOUNT_DISABLED'
           ? 'This account has been deactivated. Please contact your system administrator.'
-          : 'Invalid email address or password. Please verify your credentials.';
+          : err?.message || 'Invalid email address or password. Please verify your credentials.';
 
       return { success: false, error: errorMessage };
     } finally {
