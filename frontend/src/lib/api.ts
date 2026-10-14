@@ -37,8 +37,14 @@ export class ApiConfigurationError extends Error {
  * Resolves and validates the API base URL according to current environment
  */
 export function getApiBaseUrl(): string {
-  const configured = (process.env.NEXT_PUBLIC_API_URL || '').trim();
   const isBrowser = typeof window !== 'undefined';
+
+  // Server-side: read bound service URL injected by Vercel Services
+  if (!isBrowser && process.env.BACKEND_URL) {
+    return process.env.BACKEND_URL.trim().replace(/\/+$/, '');
+  }
+
+  const configured = (process.env.NEXT_PUBLIC_API_URL || '').trim();
   const isLocalHost = isBrowser && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
   const isDev = process.env.NODE_ENV === 'development';
 

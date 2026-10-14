@@ -180,3 +180,5 @@ app.use('/api/v1', apiRouter);
 
 // Centralized Error Handling (Section 63)
 app.use(errorHandler);
+
+export default app;
